@@ -1,0 +1,7 @@
+.vs/
+lemonadewrapper.client/obj/
+LemonadeWrapper.Server/bin/
+lemonadeWrapper.Server/obj/
+*.db
+*.db-shm
+*.db-wal

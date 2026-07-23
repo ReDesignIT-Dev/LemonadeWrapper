@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="lemonadewrapper.client/lemonadewrapper.client.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="LemonadeWrapper.Server/LemonadeWrapper.Server.csproj" />
+</Solution>
