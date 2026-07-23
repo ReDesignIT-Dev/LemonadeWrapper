@@ -5,3 +5,4 @@ lemonadeWrapper.Server/obj/
 *.db
 *.db-shm
 *.db-wal
+LemonadeWrapper.Server/user-settings.json
