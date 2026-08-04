@@ -3,12 +3,16 @@ import type { ChatSession, ChatMessage } from '../types/chat';
 const API_BASE = '/LemonadeServer';
 
 /** Fetches the list of available model IDs from the external AI server via our proxy. */
-export async function fetchModels(aiServerUrl: string, apiKey: string): Promise<string[]> {
+export async function fetchModels(
+  aiServerUrl: string,
+  apiKey: string,
+  signal?: AbortSignal
+): Promise<string[]> {
   const params = new URLSearchParams({
     url: aiServerUrl,
     apiKey,
   });
-  const res = await fetch(`${API_BASE}/models?${params}`);
+  const res = await fetch(`${API_BASE}/models?${params}`, { signal });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(text || `Failed to fetch models: ${res.statusText}`);

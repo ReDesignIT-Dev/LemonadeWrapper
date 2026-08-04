@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -48,6 +48,7 @@ export default function SettingsModal({ open, settings, onSave, onClose }: Setti
   const [models, setModels] = useState<string[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Sync local state when the modal opens
   useEffect(() => {
@@ -65,24 +66,44 @@ export default function SettingsModal({ open, settings, onSave, onClose }: Setti
       } else {
         setModels([]);
       }
+    } else {
+      // Modal closed — abort any in-flight request
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const loadModels = async (targetUrl: string, targetKey: string) => {
+    // Abort any previous request
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setModelsLoading(true);
     setModelsError(null);
     setModels([]);
     setSelectedModel('');
     try {
-      const list = await fetchModels(targetUrl, targetKey);
+      const list = await fetchModels(targetUrl, targetKey, controller.signal);
       setModels(list);
       if (list.length === 1) setSelectedModel(list[0]);
     } catch (e) {
+      if ((e as { name?: string }).name === 'AbortError') {
+        // User cancelled — clear loading silently
+        return;
+      }
       setModelsError(e instanceof Error ? e.message : 'Could not fetch models');
     } finally {
       setModelsLoading(false);
     }
+  };
+
+  const handleCancelConnect = () => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setModelsLoading(false);
+    setModelsError(null);
   };
 
   const handleConnect = () => {
@@ -179,31 +200,52 @@ export default function SettingsModal({ open, settings, onSave, onClose }: Setti
           }}
         />
 
-        {/* Connect button */}
-        <Button
-          onClick={handleConnect}
-          disabled={!canConnect || modelsLoading}
-          variant="outlined"
-          fullWidth
-          sx={{
-            mb: 2.5,
-            borderColor: 'rgba(251,191,36,0.35)',
-            color: '#fbbf24',
-            borderRadius: 2,
-            py: 1,
-            '&:hover': {
-              borderColor: '#fbbf24',
-              background: 'rgba(251,191,36,0.06)',
-            },
-            '&.Mui-disabled': {
-              borderColor: 'rgba(255,255,255,0.1)',
-              color: 'rgba(255,255,255,0.2)',
-            },
-          }}
-          startIcon={modelsLoading ? <CircularProgress size={16} sx={{ color: '#fbbf24' }} /> : null}
-        >
-          {modelsLoading ? 'Connecting…' : 'Connect & Fetch Models'}
-        </Button>
+        {/* Connect / Cancel row */}
+        <Box sx={{ display: 'flex', gap: 1, mb: 2.5 }}>
+          <Button
+            onClick={handleConnect}
+            disabled={!canConnect || modelsLoading}
+            variant="outlined"
+            fullWidth
+            sx={{
+              borderColor: 'rgba(251,191,36,0.35)',
+              color: '#fbbf24',
+              borderRadius: 2,
+              py: 1,
+              '&:hover': {
+                borderColor: '#fbbf24',
+                background: 'rgba(251,191,36,0.06)',
+              },
+              '&.Mui-disabled': {
+                borderColor: 'rgba(255,255,255,0.1)',
+                color: 'rgba(255,255,255,0.2)',
+              },
+            }}
+            startIcon={modelsLoading ? <CircularProgress size={16} sx={{ color: '#fbbf24' }} /> : null}
+          >
+            {modelsLoading ? 'Connecting…' : 'Connect & Fetch Models'}
+          </Button>
+
+          {modelsLoading && (
+            <IconButton
+              onClick={handleCancelConnect}
+              title="Cancel connection"
+              sx={{
+                border: '1px solid rgba(239,68,68,0.4)',
+                borderRadius: 2,
+                color: '#f87171',
+                px: 1.5,
+                flexShrink: 0,
+                '&:hover': {
+                  background: 'rgba(239,68,68,0.1)',
+                  borderColor: '#f87171',
+                },
+              }}
+            >
+              ✕
+            </IconButton>
+          )}
+        </Box>
 
         {/* Error */}
         {modelsError && (
